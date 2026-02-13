@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 typedef struct
 {
@@ -100,106 +101,109 @@ void printDigraph(DIGRAPH *g)
     free(s);
     free(s_k);
 }*/
-int* compar(const void* i, const void* j, void* list){
-    double* liste =list;
-    const *j = j;
-    const *i = i;
 
+
+void qsort_r(void *base, size_t nmemb, size_t size,
+             int (*compar)(const void *, const void *, void *),
+             void *arg);
+
+int compare(const void *a, const void *b, void *arg)
+{
+    int index_a = *(const int *)a;
+    int index_b = *(const int *)b;
+    double *scores = (double *)arg; 
+
+    if (scores[index_a] < scores[index_b]) return 1;
+    if (scores[index_a] > scores[index_b]) return -1;
+    return 0;
 }
-void qsort_r(void base, size_t nmemb, size_t size,
-                  int (*compar)(const void , const void , void *),
-                  void *arg);
 
 void score(DIGRAPH *g)
 {
+    // --- Initialisations ---
     double *s = (double *)malloc(g->n * sizeof(double));
     double *s_k = (double *)malloc(g->n * sizeof(double));
-    double epsilon = 1.0e-10; 
-    double alpha = 0.9;       
+    double epsilon = 1.0e-10;
+    double alpha = 0.9; // Modifiez selon l'exercice (0.9 pour genetic.txt)
 
     for (int i = 0; i < g->n; i++)
-    {
         s[i] = 1.0 / g->n;
-    }
 
+    // --- Boucle de convergence ---
     int iter = 0;
-    while (1) 
+    while (1)
     {
         iter++;
         double qabs = 0.0;
         
+        // Calcul contribution absorbants
         for (int i = 0; i < g->n; i++)
         {
             if (g->nbSucc[i] == 0)
-            {
                 qabs += s[i] / g->n;
-            }
-            s_k[i] = 0.0; 
+            s_k[i] = 0.0;
         }
 
+        // Distribution des scores
         for (int i = 0; i < g->n; i++)
         {
             s_k[i] += qabs * alpha + (1.0 - alpha) / g->n;
-            
             for (int j = 0; j < g->nbSucc[i]; j++)
             {
                 s_k[g->succ[i][j]] += (s[i] / g->nbSucc[i]) * alpha;
             }
         }
 
+        // Test d'arrêt
         double max_diff = 0.0;
-        for (int i = 0; i < g->n; i++) {
+        for (int i = 0; i < g->n; i++)
+        {
             double diff = fabs(s_k[i] - s[i]);
             if (diff > max_diff) max_diff = diff;
         }
 
+        // Swap
         double *temp = s;
         s = s_k;
         s_k = temp;
 
-        
         if (max_diff < epsilon) break;
     }
+    
+    printf("Convergence en %d itérations.\n", iter);
 
-    printf("Convergence atteinte après %d itérations.\n", iter);
-
-
+    // --- TRI AVEC QSORT_R ---
+    
+    // 1. On crée un tableau qui contient juste les numéros de pages [0, 1, 2...]
     int *indices = (int *)malloc(g->n * sizeof(int));
-    for(int i=0; i<g->n; i++) indices[i] = i;
-
-
-    for (int i = 0; i < g->n - 1; i++)
+    for (int i = 0; i < g->n; i++)
     {
-        int max_idx = i;
-        for (int j = i + 1; j < g->n; j++)
-        {
-            if (s[indices[j]] > s[indices[max_idx]])
-            {
-                max_idx = j;
-            }
-        }
-
-        int temp = indices[i];
-        indices[i] = indices[max_idx];
-        indices[max_idx] = temp;
+        indices[i] = i;
     }
 
+    // 2. On trie ce tableau d'indices en utilisant 's' comme référence
+    // Syntaxe GNU (Linux/INSA) : qsort_r(base, nmemb, size, compar, arg)
+    qsort_r(indices, g->n, sizeof(int), compare, s);
+
+    // 3. Affichage
     printf("Top 5 pages:\n");
-    int limit = (g->n < 5) ? g->n : 5; 
+    int limit = (g->n < 5) ? g->n : 5;
     for (int i = 0; i < limit; i++)
     {
-        printf("Page %d : %f\n", indices[i], s[indices[i]]);
+        // indices[i] est le numéro de la page triée
+        // s[indices[i]] est son score
+        printf("Page %d : %.12f\n", indices[i], s[indices[i]]);
     }
 
     free(indices);
     free(s);
     free(s_k);
 }
-    
+
 
 int main()
 {
-    FILE *fp = fopen("exemple2.txt", "r");
+    FILE *fp = fopen("genetic.txt", "r");
     DIGRAPH *g = readDigraph(fp);
     fclose(fp);
     printDigraph(g);

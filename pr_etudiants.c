@@ -67,6 +67,7 @@ void score(DIGRAPH *g, int k)
     for (int iter = 0; iter < k; iter++)
     {
         double qabs = 0.0;
+        double alpha=0.9;
         for (int i = 0; i < g->n; i++)
         {
             if (g->nbSucc[i] == 0)
@@ -78,10 +79,10 @@ void score(DIGRAPH *g, int k)
 
         for (int i = 0; i < g->n; i++)
         {
-            s_k[i] += qabs;
+            s_k[i] += qabs*alpha + (1.0 - alpha) / g->n;
             for (int j = 0; j < g->nbSucc[i]; j++)
             {
-                s_k[g->succ[i][j]] += s[i] / g->nbSucc[i];
+                s_k[g->succ[i][j]] += (s[i] / g->nbSucc[i]) * alpha;
             }
         }
         double *temp = s;
@@ -106,6 +107,6 @@ int main()
     DIGRAPH *g = readDigraph(fp);
     fclose(fp);
     printDigraph(g);
-    score(g, 100);
+    score(g, 4);
     return 0;
 }
